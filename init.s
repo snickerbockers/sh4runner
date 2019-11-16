@@ -31,15 +31,6 @@
 .globl _start
 .text
 
-! hardcode for 476i 60Hz NTSC
-! SPG_HBLANK_INT: 03450000
-! SPG_VBLANK_INT: 00150104
-! SPG_HBLANK: 007E0345
-! SPG_VBLANK: 00240204
-! SPG_LOAD: 020C0359
-! SPG_CONTROL: 00000150
-! SPG_WIDTH: 0x07d6c63f
-
 _start:
 ! put a pointer to the bottom of the stack in r15
 	mova stack_bottom, r0
@@ -79,19 +70,85 @@ spg_loop_second:
 	bf spg_loop_second
 
 spg_done:
-	! configure FB_R_CTRL
+	! set fb_r_ctrl
 	mova fb_r_ctrl_addr, r0
 	mov.l @r0, r0
 	mov #5, r1
 	mov.l r1, @r0
 
+	! set fb_r_sof1
+	add #12, r0
+	mov.l fb_r_sof1_val, r4
+	mov.l r4, @r0
+
+	! set fb_r_sof2
+	add #4, r0
+	mov.l fb_r_sof2_val, r1
+	mov.l r1, @r0
+
+	! set fb_r_size
+	add #8, r0
+	mov.l fb_r_size_val, r1
+	mov.l r1, @r0
+
+clear_screen:
+	! r3 contains two adjacent blue pixels
+	mov #31, r0
+	shll8 r0
+	shll8 r0
+	or #31, r0
+	mov r0, r3
+
+	! r4 holds pointer to framebuffer
+	mov #5, r1
+	shll8 r1
+	shll8 r1
+	shll8 r1
+	or r1, r4 ! r4 still holds fb_r_sof1_val from before
+
+	! r1 stores row
+	! r2 stores column / 2
+	xor r1, r1
+	mov.w row_count, r5
+	mov.w col_count, r6
+clear_row:
+	xor r2, r2
+clear_2pix:
+
+	mov.l r0, @r4
+	add #4, r4
+
+	add #2, r2
+	cmp/eq r6, r2
+	bf clear_2pix
+
+	add #1, r1
+	cmp/eq r5, r1
+	bf clear_row
+	bt sh4runner_loop_forever
+
+.align 2
+row_count:
+	.word 476
+col_count:
+	.word 640
+
 sh4runner_loop_forever:
 	bra sh4runner_loop_forever
 	nop
 
+	! hardcode for 640x476i 59.94Hz NTSC
+	! linestride for adjacent lines in the same field is 2560 bytes
+	! linestride for adjacent lines in different fields is 1280 bytes
 	.align 4
 fb_r_ctrl_addr:
 	.long 0xa05f8044
+fb_r_sof1_val:
+	.long 0x00200000
+fb_r_sof2_val:
+	.long 0x00200500
+fb_r_size_val:
+	.long 0x1413b53f
 
 ! seven 4-byte registers
 spg_base_addr:
