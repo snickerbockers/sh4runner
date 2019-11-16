@@ -32,5 +32,22 @@
 .text
 
 _start:
-	bra _start
+! put a pointer to the bottom of the stack in r15
+	mova stack_bottom, r0
+	xor r1, r1
+	add #1, r1
+	shll8 r1
+	shll2 r1
+	shll2 r1
+	add r1, r0
+	mov r0, r15
+
+sh4runner_loop_forever:
+	bra sh4runner_loop_forever
 	nop
+
+
+! 4 kilobyte stack
+	.align 8
+stack_bottom:
+	.space 4096
