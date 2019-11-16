@@ -1,0 +1,5 @@
+sh4runner is intended to be a simple framework for writing low-level Dreamcast
+programs that need to be able to interact with hardware on their own terms.
+
+Eventually there will be some optional functions to help out with getting
+framebuffer graphics and serial I/O, but that's about it.
