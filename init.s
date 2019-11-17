@@ -106,32 +106,19 @@ clear_screen:
 	shll8 r1
 	or r1, r4 ! r4 still holds fb_r_sof1_val from before
 
-	! r1 stores row
-	! r2 stores column / 2
+	mov.l fb_length_long, r0
 	xor r1, r1
-	mov.w row_count, r5
-	mov.w col_count, r6
-clear_row:
-	xor r2, r2
 clear_2pix:
-
-	mov.l r0, @r4
+	mov.l r3, @r4
 	add #4, r4
-
-	add #2, r2
-	cmp/eq r6, r2
-	bf clear_2pix
-
 	add #1, r1
-	cmp/eq r5, r1
-	bf clear_row
+	cmp/eq r1, r0
+	bf clear_2pix
 	bt sh4runner_loop_forever
 
-.align 2
-row_count:
-	.word 476
-col_count:
-	.word 640
+	.align 4
+fb_length_long:
+	.long (1280 / 4) * 476
 
 sh4runner_loop_forever:
 	bra sh4runner_loop_forever
