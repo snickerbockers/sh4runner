@@ -53,6 +53,8 @@
 
 #define FRAMEBUFFER ((void volatile*)0xa5200000)
 
+void *get_romfont_pointer(void);
+
 static void configure_video(void) {
     // Hardcoded for 640x476i NTSC video
     SPG_HBLANK_INT = 0x03450000;
@@ -97,11 +99,118 @@ static unsigned short make_color(unsigned red, unsigned green, unsigned blue) {
     return blue | (green << 5) | (red << 11);
 }
 
+static unsigned short normal_font[288 * 24 * 12];
+static unsigned short success_font[288 * 24 * 12];
+static unsigned short fail_font[288 * 24 * 12];
+
+static void
+create_font(unsigned short *font,
+            unsigned short foreground, unsigned short background) {
+    get_romfont_pointer();
+    char const *romfont = get_romfont_pointer();
+
+    unsigned glyph;
+    for (glyph = 0; glyph < 288; glyph++) {
+        unsigned short *glyph_out = font + glyph * 24 * 12;
+        char const *glyph_in = romfont + (12 * 24 / 8) * glyph;
+
+        unsigned row, col;
+        for (row = 0; row < 24; row++) {
+            for (col = 0; col < 12; col++) {
+                unsigned idx = row * 12 + col;
+                char const *inp = glyph_in + idx / 8;
+                char mask = 0x80 >> (idx % 8);
+                unsigned short *outp = glyph_out + idx;
+                if (*inp & mask)
+                    *outp = foreground;
+                else
+                    *outp = background;
+            }
+        }
+    }
+}
+
+#define MAX_CHARS_X (FRAMEBUFFER_WIDTH / 12)
+#define MAX_CHARS_Y (FRAMEBUFFER_HEIGHT / 24)
+
+static void draw_glyph(void volatile *fb, unsigned short const *font,
+                       unsigned glyph_no, unsigned x, unsigned y) {
+    if (glyph_no > 287)
+        glyph_no = 0;
+    unsigned short volatile *outp = ((unsigned short volatile*)fb) +
+        y * LINESTRIDE_PIXELS + x;
+    unsigned short const *glyph = font + glyph_no * 24 * 12;
+
+    unsigned row;
+    for (row = 0; row < 24; row++) {
+        unsigned col;
+        for (col = 0; col < 12; col++) {
+            outp[col] = glyph[row * 12 + col];
+        }
+        outp += LINESTRIDE_PIXELS;
+    }
+}
+
+static void draw_char(void volatile *fb, unsigned short const *font,
+                      char ch, unsigned row, unsigned col) {
+    if (row >= MAX_CHARS_Y || col >= MAX_CHARS_X)
+        return;
+
+    unsigned x = col * 12;
+    unsigned y = row * 24;
+
+    unsigned glyph;
+    if (ch >= 33 && ch <= 126)
+        glyph = ch - 33 + 1;
+    else
+        return;
+
+    draw_glyph(fb, font, glyph, x, y);
+}
+
+static void drawstring(void volatile *fb, unsigned short const *font,
+                       char const *msg, unsigned row, unsigned col) {
+    while (*msg) {
+        if (col >= MAX_CHARS_X) {
+            col = 0;
+            row++;
+        }
+        if (*msg == '\n') {
+            col = 0;
+            row++;
+            msg++;
+            continue;
+        }
+        draw_char(fb, font, *msg++, row, col++);
+    }
+}
+
 int main(int argc, char **argv) {
+
+    create_font(normal_font, make_color(255, 255, 255), make_color(0, 0, 0));
+    create_font(success_font, make_color(0, 255, 0), make_color(0, 0, 0));
+    create_font(fail_font, make_color(255, 0, 0), make_color(0, 0, 0));
 
     configure_video();
 
-    clear_screen(FRAMEBUFFER, make_color(0, 0, 255));
+    clear_screen(FRAMEBUFFER, make_color(0, 0, 0));
+
+    /*
+     * The intention here is for this to be a Rez reference, but I can't
+     * remember the exact wording of the quoate so I probably fucked it up in
+     * some way.
+     */
+    drawstring(FRAMEBUFFER, normal_font, "WELCOME TO SH4RUNNER", 0, 0);
+
+    drawstring(FRAMEBUFFER, normal_font, "the system is attempting to shut "
+               "itself down, leaving you trapped inside it!", 1, 0);
+
+    drawstring(FRAMEBUFFER, success_font, "this was a triumph", 3, 0);
+
+    drawstring(FRAMEBUFFER, fail_font, "this was *not* a triumph", 4, 0);
+
+    drawstring(FRAMEBUFFER, normal_font, "this\nis\na\nmultiline\nstring", 5, 0);
+
 
     for (;;) ;
     return 0;
