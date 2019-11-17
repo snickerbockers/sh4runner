@@ -60,6 +60,20 @@ _start:
 	add r1, r0
 	mov r0, r15
 
+	mov.l main_addr, r0
+	jsr @r0
+	nop
+
+	.align 4
+main_addr:
+	.long main
+
+! 4 kilobyte stack
+	.align 8
+stack_bottom:
+	.space 4096
+
+main:
 	! configure SPG
 	mova spg_base_addr, r0
 	mov.l @r0, r1
@@ -117,6 +131,11 @@ spg_done:
 sh4runner_loop_forever:
 	bra sh4runner_loop_forever
 	nop
+
+main_ret:
+	! this never happens tbh
+	xor r0, r0
+	rts
 
 	! hardcode for 640x476i 59.94Hz NTSC
 	! linestride for adjacent lines in the same field is 2560 bytes
@@ -185,8 +204,3 @@ fb_length_long:
 	.long (1280 / 4) * 476
 fb_start:
 	.long 0x05200000
-
-! 4 kilobyte stack
-	.align 8
-stack_bottom:
-	.space 4096
