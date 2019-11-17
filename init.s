@@ -31,6 +31,24 @@
 .globl _start
 .text
 
+! gcc's sh calling convention (I'm sticking to this even though I don't use C)
+! r0 - return value, not preseved
+! r1 - not preserved
+! r2 - not preserved
+! r3 - not preserved
+! r4 - parameter 0, not preserved
+! r5 - parameter 1, not preserved
+! r6 - parameter 2, not preserved
+! r7 - parameter 3, not preserved
+! r8 - preserved
+! r9 - preserved
+! r10 - preserved
+! r11 - preserved
+! r12 - preserved
+! r13 - preserved
+! r14 - base pointer, preserved
+! r15 - stack pointer, preserved
+
 _start:
 ! put a pointer to the bottom of the stack in r15
 	mova stack_bottom, r0
@@ -91,34 +109,10 @@ spg_done:
 	mov.l fb_r_size_val, r1
 	mov.l r1, @r0
 
-clear_screen:
-	! r3 contains two adjacent blue pixels
-	mov #31, r0
-	shll8 r0
-	shll8 r0
-	or #31, r0
-	mov r0, r3
+	mova clear_screen, r0
+	jsr @r0
+	mov #31, r4
 
-	! r4 holds pointer to framebuffer
-	mov #5, r1
-	shll8 r1
-	shll8 r1
-	shll8 r1
-	or r1, r4 ! r4 still holds fb_r_sof1_val from before
-
-	mov.l fb_length_long, r0
-	xor r1, r1
-clear_2pix:
-	mov.l r3, @r4
-	add #4, r4
-	add #1, r1
-	cmp/eq r1, r0
-	bf clear_2pix
-	bt sh4runner_loop_forever
-
-	.align 4
-fb_length_long:
-	.long (1280 / 4) * 476
 
 sh4runner_loop_forever:
 	bra sh4runner_loop_forever
@@ -164,6 +158,33 @@ spg_vals:
 	.long 0x000000a4
 	! VO_STARTY
 	.long 0x00120012
+
+clear_screen:
+	! r3 contains two adjacent pixels
+	mov r4, r3
+	shll8 r3
+	shll8 r3
+	or r4, r3
+
+	! r4 holds pointer to framebuffer
+	mov.l fb_start, r4
+
+	mov.l fb_length_long, r0
+	xor r1, r1
+clear_2pix:
+	mov.l r3, @r4
+	add #4, r4
+	add #1, r1
+	cmp/eq r1, r0
+	bf clear_2pix
+	rts
+	nop
+
+	.align 4
+fb_length_long:
+	.long (1280 / 4) * 476
+fb_start:
+	.long 0x05200000
 
 ! 4 kilobyte stack
 	.align 8
