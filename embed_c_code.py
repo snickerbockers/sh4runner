@@ -78,6 +78,7 @@ outfile.write("static char const %s[] = {" % varname)
 inbyte = infile.read(1)
 first_val = True
 col = 0
+bytes_total = 0
 while inbyte != b"":
     if first_val:
         first_val = False
@@ -91,6 +92,20 @@ while inbyte != b"":
     col = (col + 1) % 10
     outfile.write("0x%02x" % int.from_bytes(inbyte, byteorder='little'))
     inbyte = infile.read(1)
+    bytes_total += 1
+
+print("%d bytes written" % bytes_total)
+while (bytes_total % 4):
+    outfile.write(",")
+    if col == 0:
+        outfile.write("\n\t")
+    else:
+        outfile.write(" ")
+
+    col = (col + 1) % 10
+    outfile.write("0x00")
+    bytes_total += 1
+print("After padding, size is %d" % bytes_total)
 
 outfile.write("\n};\n");
 
