@@ -197,12 +197,40 @@ static void enable_arm(void) {
 
 #include "arm_prog.h"
 
-#define TESTVAL (*(unsigned volatile*)0xa0801234)
+#define MSG_SEQNO       (*(unsigned volatile*)0xa0900000)
+#define MSG_SEQNO_ACK   (*(unsigned volatile*)0xa0900004)
+#define MSG_OPCODE      (*(unsigned volatile*)0xa0900008)
+#define MSG_DATA_P      ((char volatile*)0xa090000c)
+
+struct msg {
+    unsigned opcode;
+    char msg[52];
+};
+
+static int check_msg(struct msg *msgp);
+
+static int validate_fibonacci(char const dat[52]) {
+    unsigned const *dat32 = (unsigned const*)dat;
+
+    if (dat32[0] != 1 || dat32[1] != 1)
+        return 0;
+
+    unsigned idx;
+    for (idx = 2; idx < 52/4; idx++)
+        if (dat32[idx] != dat32[idx - 1] + dat32[idx - 2])
+            return 0;
+    return 1;
+}
+
+#define ARM7_OPCODE_FIBONACCI 69
+
+static int arm7_operational = 0;
 
 static void init_arm_cpu(void) {
+
     disable_arm();
 
-    TESTVAL = 1337;
+    MSG_OPCODE = 0;
 
     char volatile *outp = (char volatile*)0xa0800000;
     char const *inp = arm7_program;
@@ -213,8 +241,34 @@ static void init_arm_cpu(void) {
 
     enable_arm();
 
-    while (TESTVAL == 1337)
+    // wait for it to transmit its initial message - this will be a fibonacci
+    // opcode to show that it's working.
+    struct msg initial_msg;
+    while (!check_msg(&initial_msg))
         ;
+    if (initial_msg.opcode == ARM7_OPCODE_FIBONACCI &&
+        validate_fibonacci(initial_msg.msg))
+        arm7_operational = 1;
+}
+
+// returns 1 if there's a message, else 0
+static int check_msg(struct msg *msgp) {
+    static unsigned last_seqno = 0;
+
+    unsigned seqno = MSG_SEQNO;
+
+    if (seqno == last_seqno)
+        return 0;
+
+    msgp->opcode = MSG_OPCODE;
+    last_seqno = seqno;
+
+    unsigned idx;
+    for (idx = 0; idx < 52; idx++)
+        msgp->msg[idx] = MSG_DATA_P[idx];
+
+    MSG_SEQNO_ACK = seqno;
+    return 1;
 }
 
 int main(int argc, char **argv) {
@@ -243,9 +297,12 @@ int main(int argc, char **argv) {
 
     drawstring(FRAMEBUFFER, fail_font, "this was *not* a triumph", 4, 0);
 
-    drawstring(FRAMEBUFFER, normal_font, "this\nis\na\nmultiline\nstring", 5, 0);
+    if (!arm7_operational)
+        drawstring(FRAMEBUFFER, fail_font, "The ARM7 is not operating correctly", 5, 0);
+    else
+        drawstring(FRAMEBUFFER, success_font, "The ARM7 is alive and functional", 5, 0);
 
-
+    drawstring(FRAMEBUFFER, normal_font, "this\nis\na\nmultiline\nstring", 6, 0);
 
     for (;;) ;
     return 0;

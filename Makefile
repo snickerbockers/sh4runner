@@ -19,7 +19,7 @@ init.bin: init.elf
 	$(OBJCOPY) -O binary init.elf init.bin
 
 main.o: main.c arm_prog.h
-	$(CC) -c main.c -nostdlib
+	$(CC) -c main.c -nostdlib -g
 
 arm_init.o: arm_init.s
 	$(ARM_AS) -EL -mcpu=arm7 -o arm_init.o arm_init.s
