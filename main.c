@@ -51,9 +51,18 @@
 #define FRAMEBUFFER_WIDTH  640
 #define FRAMEBUFFER_HEIGHT 476
 
-#define FRAMEBUFFER ((void volatile*)0xa5200000)
+// TODO: I want to implement double-buffering and VBLANK interrupts, but I don't have that yet.
+#define FRAMEBUFFER_1 ((void volatile*)0xa5200000)
+#define FRAMEBUFFER_2 ((void volatile*)0xa5600000)
+
+#define FB_R_SOF1_FRAME1 0x00200000
+#define FB_R_SOF2_FRAME1 0x00200500
+#define FB_R_SOF1_FRAME2 0x00600000
+#define FB_R_SOF2_FRAME2 0x00600500
 
 void *get_romfont_pointer(void);
+
+static void volatile *cur_framebuffer;
 
 static void configure_video(void) {
     // Hardcoded for 640x476i NTSC video
@@ -68,9 +77,11 @@ static void configure_video(void) {
     VO_STARTX = 0x000000a4;
     VO_STARTY = 0x00120012;
     FB_R_CTRL = 0x00000005;
-    FB_R_SOF1 = 0x00200000;
-    FB_R_SOF2 = 0x00200500;
+    FB_R_SOF1 = FB_R_SOF1_FRAME1;
+    FB_R_SOF2 = FB_R_SOF2_FRAME1;
     FB_R_SIZE = 0x1413b53f;
+
+    cur_framebuffer = FRAMEBUFFER_1;
 }
 
 static void clear_screen(void volatile* fb, unsigned short color) {
@@ -271,6 +282,33 @@ static int check_msg(struct msg *msgp) {
     return 1;
 }
 
+#define REG_ISTNRM (*(unsigned volatile*)0xA05F6900)
+
+static void swap_buffers(void) {
+    if (cur_framebuffer == FRAMEBUFFER_1) {
+        FB_R_SOF1 = FB_R_SOF1_FRAME2;
+        FB_R_SOF2 = FB_R_SOF2_FRAME2;
+        cur_framebuffer = FRAMEBUFFER_2;
+    } else {
+        FB_R_SOF1 = FB_R_SOF1_FRAME1;
+        FB_R_SOF2 = FB_R_SOF2_FRAME1;
+        cur_framebuffer = FRAMEBUFFER_1;
+    }
+}
+
+static void volatile *get_backbuffer(void) {
+    if (cur_framebuffer == FRAMEBUFFER_1)
+        return FRAMEBUFFER_2;
+    else
+        return FRAMEBUFFER_1;
+}
+
+static void wait_vblank(void) {
+    while (!(REG_ISTNRM & (1 << 3)))
+        ;
+    REG_ISTNRM = (1 << 3);
+}
+
 int main(int argc, char **argv) {
 
     create_font(normal_font, make_color(255, 255, 255), make_color(0, 0, 0));
@@ -281,29 +319,19 @@ int main(int argc, char **argv) {
 
     configure_video();
 
-    clear_screen(FRAMEBUFFER, make_color(0, 0, 0));
+    for (;;) {
+        clear_screen(get_backbuffer(), make_color(0, 0, 0));
 
-    /*
-     * The intention here is for this to be a Rez reference, but I can't
-     * remember the exact wording of the quoate so I probably fucked it up in
-     * some way.
-     */
-    drawstring(FRAMEBUFFER, normal_font, "WELCOME TO SH4RUNNER", 0, 0);
+        drawstring(get_backbuffer(), normal_font, "WELCOME TO SH4RUNNER", 1, 0);
 
-    drawstring(FRAMEBUFFER, normal_font, "the system is attempting to shut "
-               "itself down, leaving you trapped inside it!", 1, 0);
+        if (arm7_operational)
+            drawstring(get_backbuffer(), success_font, "The ARM7 is alive and functional", 2, 0);
+        else
+            drawstring(get_backbuffer(), fail_font, "The ARM7 is not operating correctly", 2, 0);
 
-    drawstring(FRAMEBUFFER, success_font, "this was a triumph", 3, 0);
+        wait_vblank();
+        swap_buffers();
+    }
 
-    drawstring(FRAMEBUFFER, fail_font, "this was *not* a triumph", 4, 0);
-
-    if (!arm7_operational)
-        drawstring(FRAMEBUFFER, fail_font, "The ARM7 is not operating correctly", 5, 0);
-    else
-        drawstring(FRAMEBUFFER, success_font, "The ARM7 is alive and functional", 5, 0);
-
-    drawstring(FRAMEBUFFER, normal_font, "this\nis\na\nmultiline\nstring", 6, 0);
-
-    for (;;) ;
     return 0;
 }
