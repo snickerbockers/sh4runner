@@ -185,11 +185,45 @@ static void drawstring(void volatile *fb, unsigned short const *font,
     }
 }
 
+#define ARM7_RESET (*(volatile unsigned*)0x00702c00)
+
+static void disable_arm(void) {
+    ARM7_RESET = 1;
+}
+
+static void enable_arm(void) {
+    ARM7_RESET = 0;
+}
+
+#include "arm_prog.h"
+
+#define TESTVAL (*(unsigned volatile*)0xa0801234)
+
+static void init_arm_cpu(void) {
+    disable_arm();
+
+    TESTVAL = 1337;
+
+    char volatile *outp = (char volatile*)0xa0800000;
+    char const *inp = arm7_program;
+
+    char const *inp_end = inp + sizeof(arm7_program);
+    while (inp < inp_end)
+        *outp++ = *inp++;
+
+    enable_arm();
+
+    while (TESTVAL == 1337)
+        ;
+}
+
 int main(int argc, char **argv) {
 
     create_font(normal_font, make_color(255, 255, 255), make_color(0, 0, 0));
     create_font(success_font, make_color(0, 255, 0), make_color(0, 0, 0));
     create_font(fail_font, make_color(255, 0, 0), make_color(0, 0, 0));
+
+    init_arm_cpu();
 
     configure_video();
 
@@ -210,6 +244,7 @@ int main(int argc, char **argv) {
     drawstring(FRAMEBUFFER, fail_font, "this was *not* a triumph", 4, 0);
 
     drawstring(FRAMEBUFFER, normal_font, "this\nis\na\nmultiline\nstring", 5, 0);
+
 
 
     for (;;) ;
