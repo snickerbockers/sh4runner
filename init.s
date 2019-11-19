@@ -53,14 +53,7 @@
 
 _start:
 	! put a pointer to the top of the stack in r15
-	mova stack_bottom, r0
-	xor r1, r1
-	add #1, r1
-	shll8 r1
-	shll2 r1
-	shll2 r1
-	add r1, r0
-	mov r0, r15
+	mov.l stack_top_addr, r15
 
 	! get a cache-free pointer to configure_cache (OR with 0xa0000000)
 	mova configure_cache, r0
@@ -149,7 +142,12 @@ stack_ptr_bkup:
 romfont_fn_ptr:
 	.long 0x8c0000b4
 
+stack_top_addr:
+	.long stack_top
+
 ! 4 kilobyte stack
 	.align 8
 stack_bottom:
 	.space 4096
+stack_top:
+	.long 4

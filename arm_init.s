@@ -12,6 +12,7 @@ _start:
 	b irq
 	b fiq
 
+.align 4
 reset:
 	ldr r13, stack_top_addr
 
@@ -21,13 +22,34 @@ reset:
 	mov r1, #69
 	bl xmit_pkt
 
+	ldr r0, ack_seqno
+	ldr r1, pkt_out_addr
+	add r1, r1, #4
+
+wait_for_ack:
+	ldr r2, [r1]
+	cmp r2, r0
+	bne wait_for_ack
+
+	# transmit the hello_string
+	ldr r0,hello_string_addr
+
+	mov r1, #70
+	bl xmit_pkt
+
 forever_loop:
 	b forever_loop
 
 	.align 4
 stack_top_addr:
 	.long stack_top
+hello_string_addr:
+	.4byte hello_string
+hello_string:
+ 	.ascii "Greetings, I am the Dreamcast ARM7\000"
+	.zero 52
 
+	.align 4
 init_fib_msg:
 	# fills fib_msg with a fibonacci sequence
 	# we send this to the sh4 to prove to it that
@@ -104,6 +126,7 @@ put_long:
 	# now write out the sequence number
 	ldr r0, next_seqno
 	str r0, [r2]
+	str r0, ack_seqno
 	add r0, r0, #1
 	str r0, next_seqno
 
@@ -126,6 +149,8 @@ pkt_out_addr:
 	.long 0x00100000
 next_seqno:
 	.long 1
+ack_seqno:
+	.long 0
 
 
 
@@ -146,7 +171,7 @@ fiq:
 
 .align 4
 fib_msg:
-	.space 52
+	.zero 52
 
 	# 4 kilobyte stack
 	.align 8

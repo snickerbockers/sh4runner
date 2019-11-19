@@ -234,6 +234,7 @@ static int validate_fibonacci(char const dat[52]) {
 }
 
 #define ARM7_OPCODE_FIBONACCI 69
+#define ARM7_OPCODE_PRINT 70
 
 static int arm7_operational = 0;
 
@@ -255,16 +256,18 @@ static void init_arm_cpu(void) {
 
     // wait for it to transmit its initial message - this will be a fibonacci
     // opcode to show that it's working.
-    struct msg initial_msg;
-    while (!check_msg(&initial_msg))
-        ;
-    if (initial_msg.opcode == ARM7_OPCODE_FIBONACCI &&
-        validate_fibonacci(initial_msg.msg))
-        arm7_operational = 1;
+    /* struct msg initial_msg; */
+    /* while (!check_msg(&initial_msg)) */
+    /*     ; */
+    /* if (initial_msg.opcode == ARM7_OPCODE_FIBONACCI && */
+    /*     validate_fibonacci(initial_msg.msg)) */
+    /*     arm7_operational = 1; */
 }
 
 // returns 1 if there's a message, else 0
 static int check_msg(struct msg *msgp) {
+    int i;
+
     static unsigned last_seqno = 0;
 
     unsigned seqno = MSG_SEQNO;
@@ -276,8 +279,9 @@ static int check_msg(struct msg *msgp) {
     last_seqno = seqno;
 
     unsigned idx;
-    for (idx = 0; idx < 52; idx++)
+    for (idx = 0; idx < 52; idx++) {
         msgp->msg[idx] = MSG_DATA_P[idx];
+    }
 
     MSG_SEQNO_ACK = seqno;
     return 1;
@@ -310,7 +314,11 @@ static void wait_vblank(void) {
     REG_ISTNRM = (1 << 3);
 }
 
+static char arm_msg[52] = { '\0' };
+
 int main(int argc, char **argv) {
+
+    struct msg msg;
 
     create_font(normal_font, make_color(255, 255, 255), make_color(0, 0, 0));
     create_font(success_font, make_color(0, 255, 0), make_color(0, 0, 0));
@@ -330,8 +338,31 @@ int main(int argc, char **argv) {
         else
             drawstring(get_backbuffer(), fail_font, "The ARM7 is not operating correctly", 2, 0);
 
+        if (arm_msg[0])
+            drawstring(get_backbuffer(), normal_font, arm_msg, 3, 0);
+        else
+            drawstring(get_backbuffer(), fail_font, "NO MESSAGE RECEIVED FROM ARM", 3, 0);
+
         wait_vblank();
         swap_buffers();
+
+        int idx;
+        if (check_msg(&msg)) {
+            switch (msg.opcode) {
+            case ARM7_OPCODE_FIBONACCI:
+                arm7_operational = validate_fibonacci(msg.msg);
+                break;
+            case ARM7_OPCODE_PRINT:
+                /* arm_msg[0] = 'w'; */
+                /* arm_msg[1] = 'h'; */
+                /* arm_msg[2] = 'y'; */
+                /* arm_msg[3] = '\0'; */
+                for (idx = 0; idx < 51; idx++)
+                    arm_msg[idx] = msg.msg[idx];
+                arm_msg[51] = '\0';
+                break;
+            }
+        }
     }
 
     return 0;
