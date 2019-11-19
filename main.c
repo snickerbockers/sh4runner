@@ -241,7 +241,8 @@ static void init_arm_cpu(void) {
 
     disable_arm();
 
-    MSG_OPCODE = 0;
+    MSG_SEQNO = 0;
+    MSG_SEQNO_ACK = 0;
 
     char volatile *outp = (char volatile*)0xa0800000;
     char const *inp = arm7_program;
