@@ -25,7 +25,7 @@ arm_init.o: arm_init.s
 	$(ARM_AS) -EL -mcpu=arm7 -o arm_init.o arm_init.s
 
 arm_init.elf: arm_init.o
-	$(ARM_LD) arm_init.o -o arm_init.elf
+	$(ARM_LD) -Ttext 0x00000000 arm_init.o -o arm_init.elf
 
 arm_init.bin: arm_init.elf
 	$(ARM_OBJCOPY) -O binary -j .text -j .data -j .bss -j .rodata --set-section-flags .data=alloc,load,contents arm_init.elf arm_init.bin
