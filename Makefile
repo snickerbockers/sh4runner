@@ -16,7 +16,7 @@ init.elf: init.o main.o
 	$(LD) -Ttext 0x8c010000 init.o main.o -o init.elf
 
 init.bin: init.elf
-	$(OBJCOPY) -O binary init.elf init.bin
+	$(OBJCOPY) -O binary -j .text -j .data -j .bss -j .rodata  --set-section-flags .bss=alloc,load,contents init.elf init.bin
 
 main.o: main.c arm_prog.h
 	$(CC) -c main.c -nostdlib -g
@@ -28,7 +28,7 @@ arm_init.elf: arm_init.o
 	$(ARM_LD) arm_init.o -o arm_init.elf
 
 arm_init.bin: arm_init.elf
-	$(ARM_OBJCOPY) -O binary arm_init.elf arm_init.bin
+	$(ARM_OBJCOPY) -O binary -j .text -j .data -j .bss -j .rodata --set-section-flags .bss=alloc,load,contents arm_init.elf arm_init.bin
 
 arm_prog.h: arm_init.bin
 	./embed_c_code.py -i arm_init.bin -o arm_prog.h -t arm7_program -h arm_prog_h_
