@@ -245,10 +245,10 @@ static void init_arm_cpu(void) {
     MSG_SEQNO = 0;
     MSG_SEQNO_ACK = 0;
 
-    char volatile *outp = (char volatile*)0xa0800000;
-    char const *inp = arm7_program;
+    unsigned volatile *outp = (unsigned volatile*)0xa0800000;
+    unsigned const *inp = (unsigned const*)arm7_program;
 
-    char const *inp_end = inp + sizeof(arm7_program);
+    unsigned const *inp_end = inp + sizeof(arm7_program) / 4;
     while (inp < inp_end)
         *outp++ = *inp++;
 
