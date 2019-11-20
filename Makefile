@@ -9,6 +9,9 @@ ARM_OBJCOPY=arm-linux-gnueabi-objcopy
 
 all: init.bin
 
+clean:
+	rm -f init.o init.elf init.bin main.o arm_init.o arm_init.elf arm_init.bin arm_prog.h
+
 init.o: init.s
 	$(AS) -little -o init.o init.s
 
