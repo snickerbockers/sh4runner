@@ -307,29 +307,6 @@ static void wait_vblank(void) {
     REG_ISTNRM = (1 << 3);
 }
 
-char const *itoa(int val) {
-    static char buf[32];
-    char tmp[32];
-    if (!val) {
-        buf[0] = '0';
-        buf[1] = '\0';
-        return buf;
-    }
-    int len = 0;
-    int place = 1000000000;
-    while (place) {
-        buf[len++] = val / place + '0';
-        val %= place;
-        place /= 10;
-    }
-    buf[len] = '\0';
-
-    int idx = 0;
-    while (buf[idx] == '0')
-        idx++;
-    return buf + idx;
-}
-
 /*
  * our entry point (after _start).
  *
