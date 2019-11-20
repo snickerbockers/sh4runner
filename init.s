@@ -100,7 +100,7 @@ ccr_val:
 
 	.align 4
 main_addr:
-	.long main
+	.long dcmain
 
 	.align 4
 get_romfont_pointer:

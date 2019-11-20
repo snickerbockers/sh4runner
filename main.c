@@ -329,7 +329,14 @@ char const *itoa(int val) {
     return buf + idx;
 }
 
-int main(int argc, char **argv) {
+/*
+ * our entry point (after _start).
+ *
+ * I had to call this dcmain because the linker kept wanting to put main at the
+ * entry instead of _start, and this was the only thing I tried that actually
+ * fixed it.
+ */
+int dcmain(int argc, char **argv) {
 
     struct msg msg;
     char arm_msg[52];
