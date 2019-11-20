@@ -57,12 +57,9 @@ _start:
 
 	! get a cache-free pointer to configure_cache (OR with 0xa0000000)
 	mova configure_cache, r0
-	mov #10, r1
-	shll8 r1
-	shll8 r1
-	shll8 r1
-	shll2 r1
-	shll2 r1
+	mov.l nocache_ptr_mask, r2
+	mov.l nocache_ptr_val, r1
+	and r2, r0
 	or r1, r0
 	jsr @r0
 	nop
@@ -111,6 +108,10 @@ ccr_val:
 	.align 4
 main_addr:
 	.long dcmain
+nocache_ptr_mask:
+	.long 0x1fffffff
+nocache_ptr_val:
+	.long 0xa0000000
 
 	.align 4
 get_romfont_pointer:
