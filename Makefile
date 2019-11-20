@@ -16,7 +16,7 @@ init.o: init.s
 	$(AS) -little -o init.o init.s
 
 init.elf: init.o main.o
-	$(LD) -Ttext 0x8c010000 init.o main.o -o init.elf
+	$(CC) -Ttext 0x8c010000 init.o main.o -o init.elf -nostartfiles -nostdlib -lgcc
 
 init.bin: init.elf
 	$(OBJCOPY) -O binary -j .text -j .data -j .bss -j .rodata  --set-section-flags .bss=alloc,load,contents init.elf init.bin
