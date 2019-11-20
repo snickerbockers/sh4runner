@@ -211,7 +211,7 @@ static void enable_arm(void) {
 #define MSG_SEQNO       (*(unsigned volatile*)0xa0900000)
 #define MSG_SEQNO_ACK   (*(unsigned volatile*)0xa0900004)
 #define MSG_OPCODE      (*(unsigned volatile*)0xa0900008)
-#define MSG_DATA_P      ((char volatile*)0xa090000c)
+#define MSG_DATA_P      ((unsigned volatile*)0xa090000c)
 
 struct msg {
     unsigned opcode;
@@ -270,9 +270,10 @@ static int check_msg(struct msg *msgp) {
     msgp->opcode = MSG_OPCODE;
     last_seqno = seqno;
 
+    unsigned *dstp = (unsigned*)msgp->msg;
     unsigned idx;
-    for (idx = 0; idx < 52; idx++) {
-        msgp->msg[idx] = MSG_DATA_P[idx];
+    for (idx = 0; idx < 52/4; idx++) {
+        dstp[idx] = MSG_DATA_P[idx];
     }
 
     MSG_SEQNO_ACK = seqno;
