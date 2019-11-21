@@ -98,7 +98,7 @@ ccr_val:
 	! Anyways, this isn't a performance test, so killing the sh4 cache isn't
 	! that big of a deal.  It may be prudent to only do this when accessing
 	! aica memory, though.
-	.long 0x090c
+	.long 0x090d
 
 
 	mov.l main_addr, r0

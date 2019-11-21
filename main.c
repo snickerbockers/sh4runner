@@ -196,7 +196,7 @@ static void drawstring(void volatile *fb, unsigned short const *font,
     }
 }
 
-#define ARM7_RESET (*(volatile unsigned*)0x00702c00)
+#define ARM7_RESET (*(volatile unsigned*)0xa0702c00)
 
 static void disable_arm(void) {
     ARM7_RESET |=1;
