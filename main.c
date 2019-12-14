@@ -354,11 +354,11 @@ static int check_controller(void) {
     REG_MDAPRO = 0x6155407f;
 
     // construct packet
-    static unsigned volatile devinfo0[1024];
+    static char volatile devinfo0[1024];
     static unsigned volatile frame[36 + 31];
 
     unsigned volatile *framep = (unsigned*)MAKE_PHYS(align32(frame));
-    unsigned volatile *devinfo0p = (unsigned*)MAKE_PHYS(align32(devinfo0));
+    char volatile *devinfo0p = (char*)MAKE_PHYS(align32(devinfo0));
 
     framep[0] = 0x80000000;
     framep[1] = ((unsigned)devinfo0p) & 0x1fffffff;
@@ -376,7 +376,76 @@ static int check_controller(void) {
     wait_maple();
 
     // transfer is now complete, receive data
-    return (devinfo0p[0] & 0xff) != 0xff;
+    if (devinfo0p[0] == 0xff || devinfo0p[4] != 0 || devinfo0p[5] != 0 ||
+        devinfo0p[6] != 0 || devinfo0p[7] != 1)
+        return 0;
+
+    char const *expect = "Dreamcast Controller         ";
+    char const volatile *devname = devinfo0p + 22;
+
+    while (*expect)
+        if (*devname++ != *expect++)
+            return 0;
+    return 1;
+}
+
+static unsigned get_controller_buttons(void) {
+    if (!check_controller())
+        return 0;
+
+    // clear any pending interrupts (there shouldn't be any but do it anyways)
+    REG_ISTNRM |= (1 << 12);
+
+    // disable maple DMA
+    REG_MDEN = 0;
+
+    // make sure nothing else is going on
+    while (REG_MDST)
+        ;
+
+    // 2mpbs transfer, timeout after 1ms
+    REG_MSYS = 0xc3500000;
+
+    // trigger via CPU (as opposed to vblank)
+    REG_MDTSEL = 0;
+
+    // let it write wherever it wants, i'm not too worried about rogue DMA xfers
+    REG_MDAPRO = 0x6155407f;
+
+    // construct packet
+    static char unsigned volatile cond[1024];
+    static unsigned volatile frame[36 + 31];
+
+    unsigned volatile *framep = (unsigned*)MAKE_PHYS(align32(frame));
+    char unsigned volatile *condp = (char unsigned*)MAKE_PHYS(align32(cond));
+
+    framep[0] = 0x80000001;
+    framep[1] = ((unsigned)condp) & 0x1fffffff;
+    framep[2] = 0x01002009;
+    framep[3] = 0x01000000;
+
+    // set SB_MDSTAR to the address of the packet
+    REG_MDSTAR = ((unsigned)framep) & 0x1fffffff;
+
+    // enable maple DMA
+    REG_MDEN = 1;
+
+    // begin the transfer
+    REG_MDST = 1;
+
+    wait_maple();
+
+    // transfer is now complete, receive data
+    return ((unsigned)condp[8]) | (((unsigned)condp[9]) << 8);
+}
+
+static char const *binstr(unsigned val) {
+    static char txt[33];
+    unsigned bit_no;
+    for (bit_no = 0; bit_no < 32; bit_no++)
+        txt[31 - bit_no] = val & (1 << bit_no) ? '1' : '0';
+    txt[32] = '\0';
+    return txt;
 }
 
 /*
@@ -423,6 +492,8 @@ int dcmain(int argc, char **argv) {
             drawstring(get_backbuffer(), success_font, "controller detected", 4, 0);
         else
             drawstring(get_backbuffer(), fail_font, "no controller detected", 4, 0);
+
+        drawstring(get_backbuffer(), normal_font, binstr(get_controller_buttons()), 5, 0);
 
         wait_vblank();
         swap_buffers();
